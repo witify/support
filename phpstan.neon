@@ -1,0 +1,12 @@
+includes:
+    - ../../vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - src
+        - tests
+
+    level: 6
+
+    # witify/support runs on PHP 8.2 and Laravel 11 or newer.
+    phpVersion: 80200
