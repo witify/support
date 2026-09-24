@@ -17,6 +17,8 @@ class ConfirmRequestAction implements Action
 
     private const FLOW_TTL_SECONDS = 600; // 10 minutes
 
+    private const MAX_PASSWORD_ATTEMPTS = 3;
+
     private const REQUEST_STEP_INDEX_KEY = 'confirmation_step_index';
 
     private Request $request;
@@ -114,14 +116,13 @@ class ConfirmRequestAction implements Action
             return true;
         }
 
-        $maxAttempts = 3;
-        $key = request()->fullUrl();
+        $key = $this->passwordAttemptsKey();
 
-        if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
+        if (RateLimiter::tooManyAttempts($key, self::MAX_PASSWORD_ATTEMPTS)) {
             throw new RateLimitException;
         }
 
-        $attemptsLeft = $maxAttempts - RateLimiter::attempts($key);
+        $attemptsLeft = self::MAX_PASSWORD_ATTEMPTS - RateLimiter::attempts($key);
         RateLimiter::increment($key);
 
         $password = (string) $this->request->header('X-Confirmation-Password', '');
@@ -132,7 +133,18 @@ class ConfirmRequestAction implements Action
             throw $exception;
         }
 
+        RateLimiter::clear($key);
+
         return $password;
+    }
+
+    /**
+     * The wrong passwords are counted per user and per action: one user's
+     * mistakes never lock another user out of the same action.
+     */
+    private function passwordAttemptsKey(): string
+    {
+        return 'confirmation-password:' . Auth::id() . ':' . $this->request->url();
     }
 
     public static function clearFlow(Request $request, ?string $flow): void

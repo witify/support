@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\DB;
  */
 class SearchQuery
 {
+    private const LIKE_ESCAPE = '\\';
+
     /**
      * @var TBuilder
      */
@@ -48,31 +50,33 @@ class SearchQuery
             return $this->query;
         }
 
-        $fuzzySearch = '%' . $search . '%';
+        // A keyword is a literal: its own `%` and `_` must not become wildcards.
+        // The escape character is bound, since SQLite has no default one.
+        $fuzzySearch = '%' . addcslashes($search, '%_\\') . '%';
+        $bindings = [$fuzzySearch, self::LIKE_ESCAPE];
 
         return $this->query->where(function ($query) use (
             $items,
-            $fuzzySearch,
+            $bindings,
             $search
         ) {
             foreach ($items as $column) {
                 if ($column instanceof SearchConstraintInterface) {
                     $query->orWhere(function ($query) use ($column) {
-                        $query = $column->handle($query);
+                        $column->handle($query);
                     });
                 } elseif (is_callable($column) && ! is_string($column)) {
-                    $query = $column($query, $search);
+                    $column($query, $search);
                 } elseif ($column instanceof Expression) {
                     $query->orWhereRaw(
-                        $column->getValue(DB::connection()->getQueryGrammar()) .
-                            ' LIKE ?',
-                        [$fuzzySearch]
+                        $column->getValue(DB::connection()->getQueryGrammar()) . ' LIKE ? ESCAPE ?',
+                        $bindings
                     );
                 } elseif (is_string($column)) {
+                    // The collation already ignores case; LOWER() would only stop
+                    // the database from using an index on the column.
                     $column = $this->query->getGrammar()->wrap($column);
-                    $query->orWhereRaw('LOWER(' . $column . ') LIKE ?', [
-                        $fuzzySearch,
-                    ]);
+                    $query->orWhereRaw($column . ' LIKE ? ESCAPE ?', $bindings);
                 } else {
                     throw new \InvalidArgumentException('Invalid search item');
                 }

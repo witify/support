@@ -62,9 +62,10 @@ Without a resolver the mails are signed with `support.company_name`, then `app.n
 
 These shapes are read by the Vue applications and by the code the Architect generator produces. They do not change inside a major version.
 
-- `resource_data` on every `IsResource` model: `title`, `subtitle`, `icon`, `color`, `admin_to`, `admin_url`, `model_type`. `admin_url` is `support.admin_url` (default `/admin`) followed by `getResourceAdminTo()`.
+- `resource_data` on every `IsResource` model: `title`, `subtitle`, `icon`, `color`, `admin_to`, `admin_url`, `model_type`. `admin_url` is `support.admin_url` (default `/admin`) followed by `getResourceAdminTo()`. `color` is `gray` unless the model overrides `getResourceColor()`.
 - `can` on every `BaseResource`: `view`, `update`, `delete`, from the policy of the model. Override `canDo()` to add abilities.
-- The confirmation flow: a 428 response with `code: "confirmation_required"` and a `confirmation` object (`flow`, `token`, `title`, `message`, `errorMessage`, `confirmText`, `cancelText`, `requiresPassword`). The client replays the same request with `X-Confirmation-Flow`, `X-Confirmation-Token` and, when a password is required, `X-Confirmation-Password`. Register `ClearConfirmationFlow` on the web middleware group so a completed flow leaves the session.
+- `search()` treats the keyword as a literal (`%` and `_` match themselves), relies on the collation for case-insensitivity and hands a callback the lowercased keyword.
+- The confirmation flow: a 428 response with `code: "confirmation_required"` and a `confirmation` object (`flow`, `token`, `title`, `message`, `errorMessage`, `confirmText`, `cancelText`, `requiresPassword`). The client replays the same request with `X-Confirmation-Flow`, `X-Confirmation-Token` and, when a password is required, `X-Confirmation-Password`. Register `ClearConfirmationFlow` on the web middleware group so a completed flow leaves the session. Three wrong passwords lock the action for the user who typed them, and a right one wipes the count.
 - `NewNotification` broadcasts `notifications.created` on `private-user.{id}`. The channel name comes from `support.notifications.channel`; set `support.notifications.broadcast` to `false` in an application without a WebSocket server.
 
 ## Shared data

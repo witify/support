@@ -2,6 +2,9 @@
 
 namespace Witify\Support\Tests;
 
+use Illuminate\Database\Eloquent\Model;
+use Witify\Support\Model\IsResource;
+use Witify\Support\Model\IsResourceTrait;
 use Witify\Support\Tests\Fixtures\Order;
 
 class IsResourceTraitTest extends TestCase
@@ -34,5 +37,36 @@ class IsResourceTraitTest extends TestCase
     public function test_the_shared_data_gives_the_icon_and_color_of_the_model(): void
     {
         $this->assertSame(['icon' => 'heroicons:shopping-bag-16-solid', 'color' => 'blue'], Order::getResourceSharedData());
+    }
+
+    public function test_a_model_without_its_own_color_is_gray(): void
+    {
+        $model = new class extends Model implements IsResource
+        {
+            use IsResourceTrait;
+
+            public function getResourceTitle(): string
+            {
+                return 'Untitled';
+            }
+
+            public function getResourceSubtitle(): ?string
+            {
+                return null;
+            }
+
+            public static function getResourceIcon(): string
+            {
+                return 'heroicons:cube-16-solid';
+            }
+
+            public function getResourceAdminTo(): string
+            {
+                return 'things/1';
+            }
+        };
+
+        $this->assertSame(['icon' => 'heroicons:cube-16-solid', 'color' => 'gray'], $model::getResourceSharedData());
+        $this->assertSame('gray', $model->resource_data['color']);
     }
 }

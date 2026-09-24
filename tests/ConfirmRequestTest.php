@@ -99,6 +99,54 @@ class ConfirmRequestTest extends TestCase
             ->assertJson(['closed' => true, 'password' => 'secret']);
     }
 
+    public function test_a_right_password_wipes_the_count_of_wrong_ones(): void
+    {
+        $this->actingAs($this->user('Ada', 'secret'));
+
+        $headers = $this->confirmationHeaders();
+
+        $this->postJson('/orders/1/close', [], $headers + ['X-Confirmation-Password' => 'wrong'])->assertStatus(428);
+        $this->postJson('/orders/1/close', [], $headers + ['X-Confirmation-Password' => 'wrong'])->assertStatus(428);
+        $this->postJson('/orders/1/close', [], $headers + ['X-Confirmation-Password' => 'secret'])->assertOk();
+
+        $this->postJson('/orders/1/close', [], $this->confirmationHeaders() + ['X-Confirmation-Password' => 'wrong'])
+            ->assertStatus(428)
+            ->assertJsonPath('confirmation.errorMessage', 'The provided password is incorrect. 3 attempts left.');
+    }
+
+    public function test_one_users_wrong_passwords_do_not_lock_another_user_out(): void
+    {
+        $locked = $this->user('Ada', 'secret');
+        $other = $this->user('Bob', 'secret');
+
+        $this->actingAs($locked);
+        $headers = $this->confirmationHeaders();
+
+        foreach (range(1, 3) as $attempt) {
+            $this->postJson('/orders/1/close', [], $headers + ['X-Confirmation-Password' => 'wrong'])->assertStatus(428);
+        }
+
+        $this->postJson('/orders/1/close', [], $headers + ['X-Confirmation-Password' => 'secret'])->assertStatus(429);
+
+        $this->flushSession();
+        $this->actingAs($other);
+
+        $this->postJson('/orders/1/close', [], $this->confirmationHeaders() + ['X-Confirmation-Password' => 'secret'])->assertOk();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function confirmationHeaders(): array
+    {
+        $first = $this->postJson('/orders/1/close')->assertStatus(428);
+
+        return [
+            'X-Confirmation-Flow' => (string) $first->json('confirmation.flow'),
+            'X-Confirmation-Token' => (string) $first->json('confirmation.token'),
+        ];
+    }
+
     public function test_the_rate_limit_answers_429_with_the_package_message(): void
     {
         $this->actingAs($this->user());

@@ -60,6 +60,33 @@ class BaseQueryBuilderTest extends TestCase
         $this->assertCount(3, Order::query()->search(['client_name'])->get());
     }
 
+    public function test_search_treats_the_keyword_as_a_literal(): void
+    {
+        Order::query()->create(['number' => 'ORD-4', 'client_name' => '100% Cotton']);
+        Order::query()->create(['number' => 'ORD-5', 'client_name' => 'a_b']);
+        Order::query()->create(['number' => 'ORD-6', 'client_name' => 'axb']);
+
+        request()->merge(['search' => '100%']);
+        $this->assertSame(['ORD-4'], Order::query()->search(['client_name'])->pluck('number')->all());
+
+        request()->merge(['search' => '%']);
+        $this->assertSame(['ORD-4'], Order::query()->search(['client_name', new Expression('number')])->pluck('number')->all());
+
+        request()->merge(['search' => 'a_b']);
+        $this->assertSame(['ORD-5'], Order::query()->search(['client_name'])->pluck('number')->all());
+    }
+
+    public function test_search_keeps_the_builder_when_a_callback_returns_nothing(): void
+    {
+        request()->merge(['search' => 'acme']);
+
+        $this->assertSame(['ORD-1'], Order::query()->search([
+            function ($query, string $search): void {
+                $query->orWhere('client_name', 'like', $search);
+            },
+        ])->pluck('number')->all());
+    }
+
     public function test_date_between_accepts_one_day_or_a_range(): void
     {
         $this->assertSame(['ORD-1'], Order::query()->dateBetween('shipped_at', ['2026-01-10'])->pluck('number')->all());

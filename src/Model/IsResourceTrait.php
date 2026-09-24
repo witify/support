@@ -11,6 +11,14 @@ trait IsResourceTrait
         $this->append('resource_data');
     }
 
+    /**
+     * The color of the model in the interface. A model overrides it when it has its own.
+     */
+    public static function getResourceColor(): string
+    {
+        return 'gray';
+    }
+
     public function getResourceAdminUrl(): string
     {
         $to = $this->getResourceAdminTo();

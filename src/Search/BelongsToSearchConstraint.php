@@ -4,11 +4,12 @@ namespace Witify\Support\Search;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Expression;
 
 class BelongsToSearchConstraint implements SearchConstraintInterface
 {
     /**
-     * @param  array<int, string>  $columns
+     * @param  array<int, string|Expression<string>>  $columns
      */
     public function __construct(
         private string $relation,
